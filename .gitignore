@@ -28,3 +28,6 @@ eval/results/*
 # Local files
 tmp/
 cache/
+
+#Cursor
+.cursorrules
