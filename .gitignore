@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual env
+.venv/
+venv/
+
+# Secrets
+.env
+*.key
+*.pem
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+# Data
+candidate_data/*
+!candidate_data/.gitkeep
+
+# Eval results
+eval/results/*
+!eval/results/.gitkeep
+
+# Local files
+tmp/
+cache/

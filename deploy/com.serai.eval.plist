@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Serai — Role Scan (macOS launchd)
+ 
+  Runs every 3 hours (10 AM, 1 PM, 4 PM, 7 PM, 10 PM).
+  Scans for new roles at companies in your active registry.
+ 
+  Setup:
+  1. Copy this file to ~/Library/LaunchAgents/
+  2. Replace /path/to/serai with your actual repo path
+  3. Load it:  launchctl load ~/Library/LaunchAgents/com.serai.eval.plist
+  4. Verify:   launchctl list | grep serai
+ 
+  To unload: launchctl unload ~/Library/LaunchAgents/com.serai.eval.plist
+  To test:   launchctl start com.serai.eval
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.serai.eval</string>
+ 
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/path/to/serai/deploy/run_eval.sh</string>
+    </array>
+ 
+    <key>RunAtLoad</key>
+    <false/>
+ 
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Hour</key><integer>10</integer>
+            <key>Minute</key><integer>0</integer>
+        </dict>
+        <dict>
+            <key>Hour</key><integer>13</integer>
+            <key>Minute</key><integer>0</integer>
+        </dict>
+        <dict>
+            <key>Hour</key><integer>16</integer>
+            <key>Minute</key><integer>0</integer>
+        </dict>
+        <dict>
+            <key>Hour</key><integer>19</integer>
+            <key>Minute</key><integer>0</integer>
+        </dict>
+        <dict>
+            <key>Hour</key><integer>22</integer>
+            <key>Minute</key><integer>0</integer>
+        </dict>
+    </array>
+ 
+    <key>StandardOutPath</key>
+    <string>/path/to/serai/logs/eval_stdout.log</string>
+ 
+    <key>StandardErrorPath</key>
+    <string>/path/to/serai/logs/eval_stderr.log</string>
+</dict>
+</plist>

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Serai — Company Discovery (macOS launchd)
+ 
+  Runs daily at 7:00 AM. Discovers new companies, scores them,
+  and promotes matches to your active registry.
+ 
+  Setup:
+  1. Copy this file to ~/Library/LaunchAgents/
+  2. Replace /path/to/serai with your actual repo path
+  3. Load it:  launchctl load ~/Library/LaunchAgents/com.serai.discovery.plist
+  4. Verify:   launchctl list | grep serai
+ 
+  To unload: launchctl unload ~/Library/LaunchAgents/com.serai.discovery.plist
+  To test:   launchctl start com.serai.discovery
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.serai.discovery</string>
+ 
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/path/to/serai/deploy/run_discovery.sh</string>
+    </array>
+ 
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>7</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+ 
+    <key>RunAtLoad</key>
+    <false/>
+ 
+    <key>StandardOutPath</key>
+    <string>/path/to/serai/logs/discovery_stdout.log</string>
+ 
+    <key>StandardErrorPath</key>
+    <string>/path/to/serai/logs/discovery_stderr.log</string>
+</dict>
+</plist>
