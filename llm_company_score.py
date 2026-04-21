@@ -14,7 +14,7 @@ load_dotenv()
 client = OpenAI()
 
 CACHE_FILE = Path("llm_company_cache.json")
-MODEL_NAME = "gpt-4o-mini"
+MODEL_NAME = (os.environ.get("OPENAI_MODEL") or "gpt-4o-mini").strip() or "gpt-4o-mini"
 COMPANY_PROMPT_VERSION = "company_v15"
 BRAVE_SEARCH_API_KEY = os.getenv("BRAVE_SEARCH_API_KEY")
 

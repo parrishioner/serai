@@ -129,7 +129,7 @@ Candidate-specific disqualifiers (e.g., "consumer social / gaming", "legacy ente
 2. `pip install -r requirements.txt` (Python 3.10+)
 3. Copy `.env.example` → `.env`, fill in API keys (OpenAI, Brave Search, Notion)
 4. Copy `config.example.yaml` → `config.yaml`, customize filters (locations, salary, levels)
-5. Edit `candidate_data/candidate_profile.txt` with your role, dimensions, weights, and anchor companies (see `examples/` for templates)
+5. Edit `candidate_data/candidate_profile.txt` with your role, dimensions, weights, and anchor companies (see `examples/` for templates). Optional profile blocks: `=== COMPANY DISCOVERY CONFIG ===` … (`adjacent_title_keywords`, `broad_sweep_titles`) for ATS discovery — see `discovery_patterns.py` defaults if omitted; `=== EVAL UNKNOWN-BUCKET TITLE SUBSTRINGS ===` … (JSON array) for substring gates when `title_bucket` is unknown in eval/YC flows — see `role_title_gates.py` defaults if omitted; `=== JOB FILTER CONFIG ===` … (JSON object: title/geo/comp lists and `min_acceptable_max_comp`) for pre-LLM filtering — see `job_filter_config.py` defaults if omitted.
 6. Create your Notion database (see below)
 7. `python run_company_discovery.py` to discover and score companies automatically
 8. `python eval_llm_scoring.py` to scan for roles at your active companies

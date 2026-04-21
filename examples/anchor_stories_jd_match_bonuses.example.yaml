@@ -1,0 +1,61 @@
+# Example: optional `jd_match_bonuses` on anchor stories (see llm_score.score_jd_match_bonuses).
+# Merge the blocks below into matching stories in candidate_data/anchor_stories.yaml.
+# Each rule adds `bonus` when ANY substring in `any_of` appears in the job description.
+
+stories:
+  - id: privacy_platform
+    title: Your privacy / platform story title
+    jd_match_bonuses:
+      - any_of:
+          - security
+          - governance
+          - privacy
+          - compliance
+          - policy
+          - risk
+          - trust
+          - permissions
+          - access control
+          - data protection
+        bonus: 8
+
+  - id: trello_growth
+    title: Your growth story title
+    jd_match_bonuses:
+      - any_of:
+          - growth
+          - conversion
+          - activation
+          - onboarding
+          - retention
+          - monetization
+          - funnel
+        bonus: 6
+
+  - id: migration_platform
+    title: Your platform / migration story title
+    jd_match_bonuses:
+      - any_of:
+          - platform
+          - developer
+          - ecosystem
+          - migration
+          - integration
+          - integrations
+          - api
+          - infrastructure
+        bonus: 5
+
+  - id: ai_augmented_product_development
+    title: Your AI product story title
+    jd_match_bonuses:
+      - any_of:
+          - ai
+          - artificial intelligence
+          - llm
+          - agent
+          - agents
+          - copilot
+          - workflow automation
+          - automation
+        bonus: 5

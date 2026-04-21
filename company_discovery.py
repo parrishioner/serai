@@ -28,31 +28,6 @@ BRAVE_SEARCH_URL = "https://api.search.brave.com/res/v1/web/search"
 DISCOVERY_RECHECK_DAYS = 14
 DISCOVERY_RESULT_COUNT = 20
 
-ADJACENT_TITLE_KEYWORDS = [
-    "product engineer",
-    "growth engineer",
-    "platform",
-    "developer platform",
-    "ecosystem",
-    "api",
-    "solutions",
-    "forward deployed",
-    "product operations",
-    "strategy",
-    "ai engineer",
-    "ai workflow",
-]
-
-BROAD_SWEEP_TITLES = [
-    "product manager",
-    "product lead",
-    "product",
-    "platform product manager",
-    "ai product manager",
-    "growth product manager",
-    "forward deployed product manager",
-]
-
 DISCOVERY_DOMAINS = [
     {
         "source": "greenhouse",
@@ -94,7 +69,7 @@ def save_discovered_companies(data: dict) -> None:
     )
 
 
-def build_search_queries(patterns: list) -> list:
+def build_search_queries(patterns: list, broad_sweep_titles: list) -> list:
     queries = []
 
     for pattern in patterns:
@@ -114,7 +89,7 @@ def build_search_queries(patterns: list) -> list:
                     }
                 )
 
-    for title in BROAD_SWEEP_TITLES:
+    for title in broad_sweep_titles:
         for domain_cfg in DISCOVERY_DOMAINS:
             queries.append(
                 {
@@ -364,8 +339,8 @@ def workday_active_key(candidate: dict) -> tuple:
     )
 
 
-def collect_board_candidates(patterns: list) -> list:
-    query_specs = build_search_queries(patterns)
+def collect_board_candidates(patterns: list, broad_sweep_titles: list) -> list:
+    query_specs = build_search_queries(patterns, broad_sweep_titles)
     candidates = []
     seen = set()
 
@@ -433,13 +408,13 @@ def score_candidate_job(job: dict, filter_result: dict) -> float:
     return score
 
 
-def looks_adjacent(title: str, title_score: float) -> bool:
+def looks_adjacent(title: str, title_score: float, adjacent_title_keywords: list) -> bool:
     lowered = (title or "").lower()
 
     if title_score >= 5:
         return True
 
-    for keyword in ADJACENT_TITLE_KEYWORDS:
+    for keyword in adjacent_title_keywords:
         if keyword in lowered:
             return True
 
@@ -498,7 +473,12 @@ def build_workday_job_from_candidate(candidate: dict) -> dict:
     }
 
 
-def gather_company_evidence(candidate: dict, max_direct: int = 3, max_adjacent: int = 5) -> Optional[dict]:
+def gather_company_evidence(
+    candidate: dict,
+    adjacent_title_keywords: list,
+    max_direct: int = 3,
+    max_adjacent: int = 5,
+) -> Optional[dict]:
     if candidate["source"] == "workday":
         job = build_workday_job_from_candidate(candidate)
         filter_result = fast_filter_title_geo(job)
@@ -510,7 +490,7 @@ def gather_company_evidence(candidate: dict, max_direct: int = 3, max_adjacent: 
         if filter_result.get("passed"):
             job["discovery_match_score"] = score_candidate_job(job, filter_result)
             direct_matches.append(job)
-        elif looks_adjacent(job.get("title", ""), title_score):
+        elif looks_adjacent(job.get("title", ""), title_score, adjacent_title_keywords):
             job["discovery_match_score"] = title_score
             adjacent_matches.append(job)
 
@@ -581,7 +561,9 @@ def gather_company_evidence(candidate: dict, max_direct: int = 3, max_adjacent: 
                 direct_matches.append(job)
                 continue
 
-            if looks_adjacent(job.get("title", ""), title_score):
+            if looks_adjacent(
+                job.get("title", ""), title_score, adjacent_title_keywords
+            ):
                 job["discovery_match_score"] = title_score
                 adjacent_matches.append(job)
 
@@ -606,12 +588,16 @@ def gather_company_evidence(candidate: dict, max_direct: int = 3, max_adjacent: 
     }
 
 
-def discover_companies(patterns: list) -> list:
-    candidates = collect_board_candidates(patterns)
+def discover_companies(
+    patterns: list,
+    broad_sweep_titles: list,
+    adjacent_title_keywords: list,
+) -> list:
+    candidates = collect_board_candidates(patterns, broad_sweep_titles)
     discovered = []
 
     for candidate in candidates:
-        evidence = gather_company_evidence(candidate)
+        evidence = gather_company_evidence(candidate, adjacent_title_keywords)
         if not evidence:
             continue
 

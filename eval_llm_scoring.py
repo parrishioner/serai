@@ -20,6 +20,10 @@ from job_cache import load_cache, save_cache, upsert_cache_job, attach_first_see
 from job_freshness import compute_freshness
 from notion_helper import upsert_eval_job
 from run_metrics import append_run_metric
+from role_title_gates import (
+    load_unknown_bucket_title_substrings,
+    role_title_matches_exclusion_substrings,
+)
 import company_registry
 
 ROLE_INTEREST_THRESHOLD = 7.0
@@ -40,7 +44,11 @@ def load_text_file(path: str) -> str:
         return ""
 
 
-CANDIDATE_PROFILE = load_text_file("candidate_data/candidate_profile.txt")
+CANDIDATE_PROFILE_PATH = Path("candidate_data/candidate_profile.txt")
+CANDIDATE_PROFILE = load_text_file(str(CANDIDATE_PROFILE_PATH))
+UNKNOWN_BUCKET_TITLE_SUBSTRINGS = load_unknown_bucket_title_substrings(
+    CANDIDATE_PROFILE_PATH
+)
 
 
 def to_float(value, default=0.0):
@@ -50,41 +58,10 @@ def to_float(value, default=0.0):
         return default
 
 
-def is_strict_non_pm_role(role: dict) -> bool:
-    title = str(role.get("title", "")).lower()
-
-    strict_terms = [
-        "software engineer",
-        "staff engineer",
-        "senior engineer",
-        "backend engineer",
-        "frontend engineer",
-        "full stack engineer",
-        "full-stack engineer",
-        "platform engineer",
-        "data engineer",
-        "machine learning engineer",
-        "ml engineer",
-        "research engineer",
-        "research scientist",
-        "security engineer",
-        "site reliability engineer",
-        "sre",
-        "developer advocate",
-        "account executive",
-        "sales engineer",
-        "customer success",
-        "designer",
-        "product designer",
-    ]
-
-    return any(term in title for term in strict_terms)
-
-
 def role_fit_score(role: dict) -> float:
     """
     Role-fit score intentionally excludes company attractiveness.
-    This is the score that should govern whether non-PM / unknown roles survive.
+    This is the score that should govern whether unknown-bucket roles survive.
     """
     return round(
         to_float(role.get("strength_overlap")) * 0.40
@@ -135,9 +112,9 @@ def is_apply_worthy(role: dict) -> bool:
             and compute_apply_score(role) >= 7.4
         )
 
-    # unknown / non-PM roles need extraordinary role-fit evidence
+    # unknown title bucket: need extraordinary role-fit evidence
     return (
-        not is_strict_non_pm_role(role)
+        not role_title_matches_exclusion_substrings(role, UNKNOWN_BUCKET_TITLE_SUBSTRINGS)
         and to_float(role.get("strength_overlap")) >= 8
         and to_float(role.get("role_interest")) >= 8
         and to_float(role.get("level_fit")) >= 8
@@ -173,8 +150,8 @@ def is_network_worthy(role: dict) -> bool:
             )
         )
 
-    # unknown titles must survive on role fit alone, not company fit
-    if is_strict_non_pm_role(role):
+    # unknown title bucket: must survive on role fit alone, not company fit
+    if role_title_matches_exclusion_substrings(role, UNKNOWN_BUCKET_TITLE_SUBSTRINGS):
         return False
 
     return (
@@ -417,11 +394,13 @@ def main():
                         continue
 
                     # Final safety gate before Notion write:
-                    # unknown / strict non-PM roles must have unusually strong role-fit evidence.
+                    # unknown title bucket must show unusually strong role-fit evidence.
                     if (
                         role.get("title_bucket", "unknown") == "unknown"
                         and (
-                            is_strict_non_pm_role(role)
+                            role_title_matches_exclusion_substrings(
+                                role, UNKNOWN_BUCKET_TITLE_SUBSTRINGS
+                            )
                             or to_float(role.get("role_fit_score")) < 7.6
                             or to_float(role.get("job_confidence")) < 7
                         )
@@ -429,7 +408,7 @@ def main():
                         role["final_route"] = "Skip"
                         role["main_reservation"] = (
                             role.get("main_reservation")
-                            or "Unknown/non-PM role did not show strong enough job-fit evidence."
+                            or "Unknown title-bucket role did not show strong enough job-fit evidence."
                         )
                         metrics["skip_count"] += 1
                         continue

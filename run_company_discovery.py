@@ -9,7 +9,11 @@ from company_discovery import (
     load_discovered_companies,
     save_discovered_companies,
 )
-from discovery_patterns import DISCOVERY_PATTERNS
+from discovery_patterns import DISCOVERY_PATTERNS, load_discovery_keywords
+from role_title_gates import (
+    load_unknown_bucket_title_substrings,
+    role_title_matches_exclusion_substrings,
+)
 from llm_company_score import llm_score_company
 from run_metrics import append_run_metric
 from notion_helper import upsert_eval_job
@@ -21,6 +25,9 @@ from sources.yc_jobs import get_yc_jobs
 OUTPUT_CSV = Path("discovered_company_results.csv")
 YC_OUTPUT_CSV = Path("yc_discovered_job_results.csv")
 CANDIDATE_PROFILE_PATH = Path("candidate_data/candidate_profile.txt")
+UNKNOWN_BUCKET_TITLE_SUBSTRINGS = load_unknown_bucket_title_substrings(
+    CANDIDATE_PROFILE_PATH
+)
 PROMOTION_THRESHOLD = 7.0
 WATCHLIST_THRESHOLD = 6.5
 ROLE_INTEREST_THRESHOLD = 7.0
@@ -41,41 +48,10 @@ def to_float(value, default=0.0):
         return default
 
 
-def is_strict_non_pm_role(role: dict) -> bool:
-    title = str(role.get("title", "")).lower()
-
-    strict_terms = [
-        "software engineer",
-        "staff engineer",
-        "senior engineer",
-        "backend engineer",
-        "frontend engineer",
-        "full stack engineer",
-        "full-stack engineer",
-        "platform engineer",
-        "data engineer",
-        "machine learning engineer",
-        "ml engineer",
-        "research engineer",
-        "research scientist",
-        "security engineer",
-        "site reliability engineer",
-        "sre",
-        "developer advocate",
-        "account executive",
-        "sales engineer",
-        "customer success",
-        "designer",
-        "product designer",
-    ]
-
-    return any(term in title for term in strict_terms)
-
-
 def role_fit_score(role: dict) -> float:
     """
     Role-fit score intentionally excludes company attractiveness.
-    Unknown / non-PM roles must earn their way through on job-fit evidence.
+    Unknown-bucket roles must earn their way through on job-fit evidence.
     """
     return round(
         to_float(role.get("strength_overlap")) * 0.40
@@ -125,9 +101,9 @@ def is_apply_worthy(role: dict) -> bool:
             and compute_apply_score(role) >= 7.4
         )
 
-    # unknown / non-PM roles need extraordinary role-fit evidence
+    # unknown title bucket: need extraordinary role-fit evidence
     return (
-        not is_strict_non_pm_role(role)
+        not role_title_matches_exclusion_substrings(role, UNKNOWN_BUCKET_TITLE_SUBSTRINGS)
         and to_float(role.get("strength_overlap")) >= 8
         and to_float(role.get("role_interest")) >= 8
         and to_float(role.get("level_fit")) >= 8
@@ -163,8 +139,8 @@ def is_network_worthy(role: dict) -> bool:
             )
         )
 
-    # unknown titles must survive on role fit alone, not company fit
-    if is_strict_non_pm_role(role):
+    # unknown title bucket: must survive on role fit alone, not company fit
+    if role_title_matches_exclusion_substrings(role, UNKNOWN_BUCKET_TITLE_SUBSTRINGS):
         return False
 
     return (
@@ -355,8 +331,18 @@ def get_store_key(item: dict) -> str:
     return f"{item['source']}::{item.get('board_token', '')}"
 
 
-def process_ats_company_discovery(candidate_profile: str, metrics: dict, errors: list) -> None:
-    discovered = discover_companies(DISCOVERY_PATTERNS)
+def process_ats_company_discovery(
+    candidate_profile: str,
+    metrics: dict,
+    errors: list,
+    broad_sweep_titles: list,
+    adjacent_title_keywords: list,
+) -> None:
+    discovered = discover_companies(
+        DISCOVERY_PATTERNS,
+        broad_sweep_titles,
+        adjacent_title_keywords,
+    )
     metrics["discovery_candidates"] = len(discovered)
     metrics["companies_checked"] = len(discovered)
 
@@ -532,11 +518,13 @@ def process_yc_job_discovery(candidate_profile: str, metrics: dict, errors: list
                 continue
 
             # Final safety gate before Notion write:
-            # unknown / strict non-PM roles must have unusually strong role-fit evidence.
+            # unknown title bucket must show unusually strong role-fit evidence.
             if (
                 role.get("title_bucket", "unknown") == "unknown"
                 and (
-                    is_strict_non_pm_role(role)
+                    role_title_matches_exclusion_substrings(
+                        role, UNKNOWN_BUCKET_TITLE_SUBSTRINGS
+                    )
                     or to_float(role.get("role_fit_score")) < 7.6
                     or to_float(role.get("job_confidence")) < 7
                 )
@@ -544,7 +532,7 @@ def process_yc_job_discovery(candidate_profile: str, metrics: dict, errors: list
                 role["final_route"] = "Skip"
                 role["main_reservation"] = (
                     role.get("main_reservation")
-                    or "Unknown/non-PM role did not show strong enough job-fit evidence."
+                    or "Unknown title-bucket role did not show strong enough job-fit evidence."
                 )
                 metrics["skip_count"] += 1
                 continue
@@ -596,10 +584,17 @@ def main():
     }
 
     candidate_profile = load_text_file(CANDIDATE_PROFILE_PATH)
+    adjacent_kw, broad_titles = load_discovery_keywords(CANDIDATE_PROFILE_PATH)
     errors = []
 
     try:
-        process_ats_company_discovery(candidate_profile, metrics, errors)
+        process_ats_company_discovery(
+            candidate_profile,
+            metrics,
+            errors,
+            broad_titles,
+            adjacent_kw,
+        )
         process_yc_job_discovery(candidate_profile, metrics, errors)
 
         if errors:

@@ -185,3 +185,224 @@ Negative role signals:
 - Role requires deep domain expertise I don't have (e.g., healthcare
   compliance, financial trading systems)
 - "VP of Product" at a <50 person company (likely founder-PM, not IC PM)
+
+
+=== LLM ROLE-FIT GUARDRAILS (candidate-specific) ===
+
+This candidate is a Senior Product Manager / platform / growth / ecosystem product leader.
+She has NOT worked as a software engineer and should be treated as having no current hands-on
+software engineering fit for roles whose success depends on coding, architecture ownership,
+backend/frontend/full-stack implementation, ML engineering, infra engineering, security engineering,
+or research engineering.
+
+For clearly engineering roles:
+- strength_overlap should usually be 2-4
+- level_fit should usually be 2-4
+- role_interest should usually be 2-5
+- overall_interest_score should usually be 2-5
+- preliminary_route should usually be Skip
+Only score above those ranges if the JD gives unusually strong evidence that the role is actually
+product-shaping, forward-deployed, customer-facing, or otherwise nontraditional in a way that
+fits this candidate truthfully.
+
+If the role would require narrative stretching to sound credible in an interview, score it down.
+If the candidate lacks obvious hard prerequisites, say so directly in main_reservation.
+Do not hide role-family mismatch behind vague reservations like product culture, durability, or domain uncertainty.
+
+For non-PM / unknown-title roles:
+- extremely strong evidence of job fit is required
+- company score should not meaningfully increase role_interest or overall_interest_score
+- if the title is software engineer / engineer / developer / architect / researcher and the work is primarily hands-on technical implementation, the candidate is a poor fit unless the JD clearly proves otherwise
+
+=== END LLM ROLE-FIT GUARDRAILS (candidate-specific) ===
+
+
+=== COMPANY DISCOVERY CONFIG ===
+{
+  "adjacent_title_keywords": [
+    "product engineer",
+    "growth engineer",
+    "platform",
+    "developer platform",
+    "ecosystem",
+    "api",
+    "solutions",
+    "forward deployed",
+    "product operations",
+    "strategy",
+    "ai engineer",
+    "ai workflow"
+  ],
+  "broad_sweep_titles": [
+    "product manager",
+    "product lead",
+    "product",
+    "platform product manager",
+    "ai product manager",
+    "growth product manager",
+    "forward deployed product manager"
+  ]
+}
+=== END COMPANY DISCOVERY CONFIG ===
+
+
+=== EVAL UNKNOWN-BUCKET TITLE SUBSTRINGS ===
+[
+  "software engineer",
+  "staff engineer",
+  "senior engineer",
+  "backend engineer",
+  "frontend engineer",
+  "full stack engineer",
+  "full-stack engineer",
+  "platform engineer",
+  "data engineer",
+  "machine learning engineer",
+  "ml engineer",
+  "research engineer",
+  "research scientist",
+  "security engineer",
+  "site reliability engineer",
+  "sre",
+  "developer advocate",
+  "account executive",
+  "sales engineer",
+  "customer success",
+  "designer",
+  "product designer"
+]
+=== END EVAL UNKNOWN-BUCKET TITLE SUBSTRINGS ===
+
+=== JOB FILTER CONFIG ===
+{
+  "target_titles": [
+    "product manager",
+    "senior product manager",
+    "principal product manager",
+    "staff product manager",
+    "group product manager",
+    "lead product manager",
+    "forward deployed product manager",
+    "platform product manager",
+    "growth product manager"
+  ],
+  "adjacent_titles": [
+    "program manager",
+    "technical program manager",
+    "product operations",
+    "product ops",
+    "solutions architect",
+    "solutions consultant",
+    "implementation manager",
+    "strategy and operations",
+    "business operations"
+  ],
+  "too_junior_words": [
+    "intern",
+    "associate",
+    "junior",
+    "new grad",
+    "apm"
+  ],
+  "too_senior_words": [
+    "director",
+    "vp ",
+    "vice president",
+    "chief product officer",
+    "cpo",
+    "head of product"
+  ],
+  "local_region_terms": [
+    "san francisco",
+    "sf, ca",
+    "san jose",
+    "santa clara",
+    "mountain view",
+    "palo alto",
+    "menlo park",
+    "redwood city",
+    "sunnyvale",
+    "south san francisco",
+    "bay area",
+    "cupertino",
+    "foster city",
+    "burlingame",
+    "milpitas",
+    "oakland",
+    "berkeley",
+    "san mateo"
+  ],
+  "remote_positive_terms": [
+    "remote",
+    "work from home",
+    "distributed",
+    "anywhere"
+  ],
+  "remote_broad_pass_terms": [
+    "united states",
+    "usa",
+    "u.s.",
+    "us-only",
+    "us only",
+    "california"
+  ],
+  "remote_restricted_terms": [
+    "emea",
+    "europe",
+    "india",
+    "canada",
+    "uk",
+    "united kingdom",
+    "apac",
+    "singapore",
+    "australia",
+    "japan",
+    "germany",
+    "france",
+    "prague",
+    "pristina",
+    "czech republic",
+    "czechia",
+    "kosovo"
+  ],
+  "non_local_city_terms": [
+    "new york",
+    "new york, ny",
+    "ny, ny",
+    "nyc",
+    "seattle",
+    "austin",
+    "boston",
+    "chicago",
+    "los angeles",
+    "san diego",
+    "atlanta",
+    "denver",
+    "washington, dc",
+    "washington dc",
+    "london",
+    "toronto",
+    "prague",
+    "pristina"
+  ],
+  "hybrid_terms": [
+    "hybrid",
+    "flex",
+    "flexible"
+  ],
+  "location_split_pattern": "[;/|]|\\s+\\|\\s+|\\s+or\\s+",
+  "min_acceptable_max_comp": 200000,
+  "description_location_reject_phrases": [
+    "not eligible to be hired in san jose, ca",
+    "not eligible to be hired in california",
+    "not open to candidates in california",
+    "cannot hire in california",
+    "we are unable to employ in california",
+    "not hiring in california",
+    "excluding california",
+    "except california",
+    "remote but not eligible to be hired in san jose, ca",
+    "remote but not eligible to be hired in california"
+  ]
+}
+=== END JOB FILTER CONFIG ===

@@ -1,5 +1,6 @@
 import json
 import hashlib
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -17,13 +18,18 @@ client = OpenAI(timeout=30.0)
 
 BASE_DIR = Path(__file__).resolve().parent
 CACHE_FILE = BASE_DIR / "llm_job_cache.json"
-MODEL_NAME = "gpt-4o-mini"
+MODEL_NAME = (os.environ.get("OPENAI_MODEL") or "gpt-4o-mini").strip() or "gpt-4o-mini"
 JOB_PROMPT_VERSION = "job_v36"
 
 CANDIDATE_PROFILE_FILE = BASE_DIR / "candidate_data" / "candidate_profile.txt"
 RESUME_FILE = BASE_DIR / "candidate_data" / "resume.md"
 ANCHOR_STORIES_FILE = BASE_DIR / "candidate_data" / "anchor_stories.yaml"
+KEYWORD_WEIGHTS_FILE = BASE_DIR / "candidate_data" / "keyword_weights.yaml"
 PROMPT_TEMPLATE_FILE = BASE_DIR / "prompts" / "role_eval_prompt.txt"
+# Fallback when CANDIDATE_PROFILE_FILE has no LLM ROLE-FIT GUARDRAILS markers.
+HARD_GUARDRAILS_CANDIDATE_FILE = BASE_DIR / "candidate_profile.growth-pm.txt"
+GUARDRAILS_SECTION_START = "=== LLM ROLE-FIT GUARDRAILS (candidate-specific) ==="
+GUARDRAILS_SECTION_END = "=== END LLM ROLE-FIT GUARDRAILS (candidate-specific) ==="
 
 
 def debug_print(*args: Any) -> None:
@@ -43,6 +49,30 @@ def load_text_file(path: Path, default: str = "") -> str:
         return default
 
 
+def _extract_hard_guardrails_marked_section(raw: str) -> str:
+    """Return text between GUARDRAILS markers, or '' if the start marker is absent."""
+    if not raw:
+        return ""
+    start = raw.find(GUARDRAILS_SECTION_START)
+    if start == -1:
+        return ""
+    body_start = start + len(GUARDRAILS_SECTION_START)
+    end = raw.find(GUARDRAILS_SECTION_END, body_start)
+    if end == -1:
+        return raw[body_start:].strip()
+    return raw[body_start:end].strip()
+
+
+def load_hard_guardrails_candidate() -> str:
+    """Candidate-specific role-fit rules between markers in the active profile, with example fallback."""
+    primary = _extract_hard_guardrails_marked_section(load_text_file(CANDIDATE_PROFILE_FILE))
+    if primary:
+        return primary
+    return _extract_hard_guardrails_marked_section(
+        load_text_file(HARD_GUARDRAILS_CANDIDATE_FILE)
+    )
+
+
 def load_yaml_file(path: Path, default: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     if default is None:
         default = {}
@@ -55,10 +85,70 @@ def load_yaml_file(path: Path, default: Optional[Dict[str, Any]] = None) -> Dict
         return default
 
 
+# Used only if candidate_data/keyword_weights.yaml is missing or has no valid entries.
+# Keep in sync with that file.
+_FALLBACK_KEYWORD_WEIGHTS: Dict[str, int] = {
+    "security": 5,
+    "governance": 5,
+    "privacy": 5,
+    "compliance": 5,
+    "policy": 4,
+    "policies": 4,
+    "permissions": 4,
+    "access": 3,
+    "controls": 4,
+    "audit": 4,
+    "risk": 4,
+    "trust": 4,
+    "gdpr": 5,
+    "data protection": 5,
+    "user data": 4,
+    "deletion": 4,
+    "reporting": 3,
+    "api": 3,
+    "platform": 2,
+    "developer": 2,
+    "ecosystem": 2,
+    "migration": 3,
+    "growth": 3,
+    "monetization": 4,
+    "conversion": 4,
+    "experimentation": 4,
+    "onboarding": 3,
+    "productivity": 3,
+    "workflow": 2,
+    "ai": 3,
+    "agent": 4,
+    "agents": 4,
+    "automation": 3,
+    "enterprise": 3,
+    "integration": 3,
+    "integrations": 3,
+}
+
+
+def load_keyword_weights(path: Path) -> Dict[str, int]:
+    """JD keyword weights for anchor-story scoring; keys normalized like normalize_keyword()."""
+    raw = load_yaml_file(path, default={})
+    out: Dict[str, int] = {}
+    for k, v in raw.items():
+        if not isinstance(k, str):
+            continue
+        key = k.lower().strip().replace("_", " ")
+        if not key:
+            continue
+        try:
+            out[key] = int(v)
+        except (TypeError, ValueError):
+            continue
+    return out if out else dict(_FALLBACK_KEYWORD_WEIGHTS)
+
+
 PROMPT_TEMPLATE = load_text_file(PROMPT_TEMPLATE_FILE)
 DEFAULT_CANDIDATE_PROFILE = load_text_file(CANDIDATE_PROFILE_FILE)
 RESUME_TEXT = load_text_file(RESUME_FILE)
 ANCHOR_STORIES = load_yaml_file(ANCHOR_STORIES_FILE, default={"stories": []})
+KEYWORD_WEIGHTS = load_keyword_weights(KEYWORD_WEIGHTS_FILE)
 
 if DEBUG:
     debug_print("ANCHOR STORIES LOADED:", len(ANCHOR_STORIES.get("stories", [])))
@@ -115,45 +205,39 @@ def extract_job_description(job: Dict[str, Any]) -> str:
 
 
 def get_keyword_weight(keyword: str) -> int:
-    high_signal_terms = {
-        "security": 5,
-        "governance": 5,
-        "privacy": 5,
-        "compliance": 5,
-        "policy": 4,
-        "policies": 4,
-        "permissions": 4,
-        "access": 3,
-        "controls": 4,
-        "audit": 4,
-        "risk": 4,
-        "trust": 4,
-        "gdpr": 5,
-        "data protection": 5,
-        "user data": 4,
-        "deletion": 4,
-        "reporting": 3,
-        "api": 3,
-        "platform": 2,
-        "developer": 2,
-        "ecosystem": 2,
-        "migration": 3,
-        "growth": 3,
-        "monetization": 4,
-        "conversion": 4,
-        "experimentation": 4,
-        "onboarding": 3,
-        "productivity": 3,
-        "workflow": 2,
-        "ai": 3,
-        "agent": 4,
-        "agents": 4,
-        "automation": 3,
-        "enterprise": 3,
-        "integration": 3,
-        "integrations": 3,
-    }
-    return high_signal_terms.get(keyword, 2)
+    return KEYWORD_WEIGHTS.get(keyword, 2)
+
+
+def score_jd_match_bonuses(story: Dict[str, Any], jd: str) -> int:
+    """
+    Optional per-story boosts from anchor_stories.yaml: each story may list jd_match_bonuses
+    with rules { any_of: [substrings], bonus: int }. If ANY term appears in jd, bonus applies.
+    """
+    rules = story.get("jd_match_bonuses")
+    if not isinstance(rules, list):
+        return 0
+    extra = 0
+    for rule in rules:
+        if not isinstance(rule, dict):
+            continue
+        terms = rule.get("any_of")
+        if terms is None:
+            terms = rule.get("terms")
+        bonus = rule.get("bonus")
+        if not isinstance(terms, list):
+            continue
+        try:
+            b = int(bonus)
+        except (TypeError, ValueError):
+            continue
+        for term in terms:
+            if not isinstance(term, str):
+                continue
+            needle = term.lower().strip()
+            if needle and needle in jd:
+                extra += b
+                break
+    return extra
 
 
 def score_story_against_jd(story: Dict[str, Any], jd: str) -> int:
@@ -183,70 +267,7 @@ def score_story_against_jd(story: Dict[str, Any], jd: str) -> int:
             if len(token) >= 5 and token in jd:
                 score += get_keyword_weight(token)
 
-    jd_security_governance = any(
-        term in jd
-        for term in [
-            "security",
-            "governance",
-            "privacy",
-            "compliance",
-            "policy",
-            "risk",
-            "trust",
-            "permissions",
-            "access control",
-            "data protection",
-        ]
-    )
-    if jd_security_governance and story.get("id") == "privacy_platform":
-        score += 8
-
-    jd_growth = any(
-        term in jd
-        for term in [
-            "growth",
-            "conversion",
-            "activation",
-            "onboarding",
-            "retention",
-            "monetization",
-            "funnel",
-        ]
-    )
-    if jd_growth and story.get("id") == "trello_growth":
-        score += 6
-
-    jd_platform = any(
-        term in jd
-        for term in [
-            "platform",
-            "developer",
-            "ecosystem",
-            "migration",
-            "integration",
-            "integrations",
-            "api",
-            "infrastructure",
-        ]
-    )
-    if jd_platform and story.get("id") == "migration_platform":
-        score += 5
-
-    jd_ai = any(
-        term in jd
-        for term in [
-            "ai",
-            "artificial intelligence",
-            "llm",
-            "agent",
-            "agents",
-            "copilot",
-            "workflow automation",
-            "automation",
-        ]
-    )
-    if jd_ai and story.get("id") == "ai_augmented_product_development":
-        score += 5
+    score += score_jd_match_bonuses(story, jd)
 
     return score
 
@@ -357,7 +378,13 @@ def make_job_cache_key(
         "anchor_stories_hash": hashlib.md5(
             json.dumps(ANCHOR_STORIES, sort_keys=True, ensure_ascii=False).encode("utf-8")
         ).hexdigest(),
+        "keyword_weights_hash": hashlib.md5(
+            json.dumps(KEYWORD_WEIGHTS, sort_keys=True, ensure_ascii=False).encode("utf-8")
+        ).hexdigest(),
         "prompt_template_hash": hashlib.md5(PROMPT_TEMPLATE.encode("utf-8")).hexdigest(),
+        "hard_guardrails_candidate_hash": hashlib.md5(
+            load_hard_guardrails_candidate().encode("utf-8")
+        ).hexdigest(),
         "company": normalize_text(job.get("company")),
         "title": normalize_text(job.get("title")),
         "url": normalize_text(job.get("url")),
@@ -403,37 +430,19 @@ def build_prompt(
             f"Prompt template file is missing or empty: {PROMPT_TEMPLATE_FILE}"
         )
 
-    hard_guardrails = """
+    hard_guardrails_generic = """
 CRITICAL ROLE-FIT GUARDRAILS
 
 Treat company attractiveness and role attractiveness separately.
 A strong company must NOT rescue a weak role.
-
-This candidate is a Senior Product Manager / platform / growth / ecosystem product leader.
-She has NOT worked as a software engineer and should be treated as having no current hands-on
-software engineering fit for roles whose success depends on coding, architecture ownership,
-backend/frontend/full-stack implementation, ML engineering, infra engineering, security engineering,
-or research engineering.
-
-For clearly engineering roles:
-- strength_overlap should usually be 2-4
-- level_fit should usually be 2-4
-- role_interest should usually be 2-5
-- overall_interest_score should usually be 2-5
-- preliminary_route should usually be Skip
-Only score above those ranges if the JD gives unusually strong evidence that the role is actually
-product-shaping, forward-deployed, customer-facing, or otherwise nontraditional in a way that
-fits this candidate truthfully.
-
-If the role would require narrative stretching to sound credible in an interview, score it down.
-If the candidate lacks obvious hard prerequisites, say so directly in main_reservation.
-Do not hide role-family mismatch behind vague reservations like product culture, durability, or domain uncertainty.
-
-For non-PM / unknown-title roles:
-- extremely strong evidence of job fit is required
-- company score should not meaningfully increase role_interest or overall_interest_score
-- if the title is software engineer / engineer / developer / architect / researcher and the work is primarily hands-on technical implementation, the candidate is a poor fit unless the JD clearly proves otherwise
 """
+    candidate_guardrails = load_hard_guardrails_candidate()
+    if candidate_guardrails:
+        hard_guardrails = (
+            hard_guardrails_generic.strip() + "\n\n" + candidate_guardrails
+        ).strip()
+    else:
+        hard_guardrails = hard_guardrails_generic.strip()
 
     rendered_template = PROMPT_TEMPLATE.format(
         candidate_profile=candidate_context["candidate_profile"],

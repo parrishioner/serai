@@ -1,148 +1,12 @@
 print("LOADING JOB FILTER FILE")
 
 import re
+from pathlib import Path
 
-TARGET_PM_TITLES = [
-    "product manager",
-    "senior product manager",
-    "principal product manager",
-    "staff product manager",
-    "group product manager",
-    "lead product manager",
-    "forward deployed product manager",
-    "platform product manager",
-    "growth product manager",
-]
+from job_filter_config import load_job_filter_config
 
-ADJACENT_TITLES = [
-    "program manager",
-    "technical program manager",
-    "product operations",
-    "product ops",
-    "solutions architect",
-    "solutions consultant",
-    "implementation manager",
-    "strategy and operations",
-    "business operations",
-]
-
-TOO_JUNIOR_WORDS = [
-    "intern",
-    "associate",
-    "junior",
-    "new grad",
-    "apm",
-]
-
-TOO_SENIOR_WORDS = [
-    "director",
-    "vp ",
-    "vice president",
-    "chief product officer",
-    "cpo",
-    "head of product",
-]
-
-BAY_AREA_TERMS = [
-    "san francisco",
-    "sf, ca",
-    "san jose",
-    "santa clara",
-    "mountain view",
-    "palo alto",
-    "menlo park",
-    "redwood city",
-    "sunnyvale",
-    "south san francisco",
-    "bay area",
-    "cupertino",
-    "foster city",
-    "burlingame",
-    "milpitas",
-    "oakland",
-    "berkeley",
-    "san mateo",
-]
-
-REMOTE_POSITIVE_TERMS = [
-    "remote",
-    "work from home",
-    "distributed",
-    "anywhere",
-]
-
-BROAD_REMOTE_PASS_TERMS = [
-    "united states",
-    "usa",
-    "u.s.",
-    "us-only",
-    "us only",
-    "california",
-]
-
-REMOTE_RESTRICTED_TERMS = [
-    "emea",
-    "europe",
-    "india",
-    "canada",
-    "uk",
-    "united kingdom",
-    "apac",
-    "singapore",
-    "australia",
-    "japan",
-    "germany",
-    "france",
-    "prague",
-    "pristina",
-    "czech republic",
-    "czechia",
-    "kosovo",
-]
-
-NON_LOCAL_CITY_TERMS = [
-    "new york",
-    "new york, ny",
-    "ny, ny",
-    "nyc",
-    "seattle",
-    "austin",
-    "boston",
-    "chicago",
-    "los angeles",
-    "san diego",
-    "atlanta",
-    "denver",
-    "washington, dc",
-    "washington dc",
-    "london",
-    "toronto",
-    "prague",
-    "pristina",
-]
-
-HYBRID_TERMS = [
-    "hybrid",
-    "flex",
-    "flexible",
-]
-
-LOCATION_SPLIT_PATTERN = r"[;/|]|\s+\|\s+|\s+or\s+"
-
-MIN_ACCEPTABLE_MAX_COMP = 200000
-
-DESCRIPTION_LOCATION_REJECT_PHRASES = [
-    "not eligible to be hired in san jose, ca",
-    "not eligible to be hired in california",
-    "not open to candidates in california",
-    "cannot hire in california",
-    "we are unable to employ in california",
-    "not hiring in california",
-    "excluding california",
-    "except california",
-    "remote but not eligible to be hired in san jose, ca",
-    "remote but not eligible to be hired in california",
-]
+# Loaded once; override via === JOB FILTER CONFIG === JSON in candidate_data/candidate_profile.txt
+_FILTER_CONFIG = load_job_filter_config(Path("candidate_data/candidate_profile.txt"))
 
 DEBUG_GEO = False
 
@@ -150,7 +14,7 @@ DEBUG_GEO = False
 def score_title_affinity(title):
     title = (title or "").lower().strip()
 
-    if any(word in title for word in TOO_JUNIOR_WORDS):
+    if any(word in title for word in _FILTER_CONFIG["too_junior_words"]):
         return {
             "passed": False,
             "score": 0,
@@ -158,7 +22,7 @@ def score_title_affinity(title):
             "bucket": "reject",
         }
 
-    if any(word in title for word in TOO_SENIOR_WORDS):
+    if any(word in title for word in _FILTER_CONFIG["too_senior_words"]):
         return {
             "passed": False,
             "score": 0,
@@ -166,15 +30,15 @@ def score_title_affinity(title):
             "bucket": "reject",
         }
 
-    if any(phrase in title for phrase in TARGET_PM_TITLES):
+    if any(phrase in title for phrase in _FILTER_CONFIG["target_titles"]):
         return {
             "passed": True,
             "score": 10,
-            "reason": "title_soft_pass:target_pm_title",
+            "reason": "title_soft_pass:target_title",
             "bucket": "core_pm",
         }
 
-    if any(phrase in title for phrase in ADJACENT_TITLES):
+    if any(phrase in title for phrase in _FILTER_CONFIG["adjacent_titles"]):
         return {
             "passed": True,
             "score": 6,
@@ -191,6 +55,7 @@ def score_title_affinity(title):
 
 
 def check_comp(comp_min, comp_max):
+    min_max = _FILTER_CONFIG["min_acceptable_max_comp"]
     if comp_min is None and comp_max is None:
         return {
             "passed": True,
@@ -198,10 +63,10 @@ def check_comp(comp_min, comp_max):
             "force_review": True,
         }
 
-    if comp_max is not None and comp_max < MIN_ACCEPTABLE_MAX_COMP:
+    if comp_max is not None and comp_max < min_max:
         return {
             "passed": False,
-            "reason": f"comp_reject:max_comp_below_{MIN_ACCEPTABLE_MAX_COMP}",
+            "reason": f"comp_reject:max_comp_below_{min_max}",
             "force_review": False,
         }
 
@@ -220,7 +85,7 @@ def split_locations(location_text):
     if not location_text:
         return []
 
-    parts = re.split(LOCATION_SPLIT_PATTERN, location_text)
+    parts = re.split(_FILTER_CONFIG["location_split_pattern"], location_text)
     cleaned = [part.strip() for part in parts if part.strip()]
 
     if not cleaned:
@@ -244,9 +109,9 @@ def classify_single_location(location):
             "force_review": False,
         }
 
-    is_hybrid = has_any_term(location, HYBRID_TERMS)
+    is_hybrid = has_any_term(location, _FILTER_CONFIG["hybrid_terms"])
 
-    if has_any_term(location, BAY_AREA_TERMS):
+    if has_any_term(location, _FILTER_CONFIG["local_region_terms"]):
         if is_hybrid:
             return {
                 "category": "hybrid_local",
@@ -261,7 +126,7 @@ def classify_single_location(location):
             "force_review": False,
         }
 
-    if has_any_term(location, NON_LOCAL_CITY_TERMS):
+    if has_any_term(location, _FILTER_CONFIG["non_local_city_terms"]):
         if is_hybrid:
             return {
                 "category": "hybrid_non_local",
@@ -276,8 +141,8 @@ def classify_single_location(location):
             "force_review": False,
         }
 
-    if has_any_term(location, REMOTE_POSITIVE_TERMS):
-        if has_any_term(location, REMOTE_RESTRICTED_TERMS):
+    if has_any_term(location, _FILTER_CONFIG["remote_positive_terms"]):
+        if has_any_term(location, _FILTER_CONFIG["remote_restricted_terms"]):
             return {
                 "category": "remote_restricted",
                 "passed": False,
@@ -285,7 +150,7 @@ def classify_single_location(location):
                 "force_review": False,
             }
 
-        if has_any_term(location, BROAD_REMOTE_PASS_TERMS):
+        if has_any_term(location, _FILTER_CONFIG["remote_broad_pass_terms"]):
             return {
                 "category": "remote_ok",
                 "passed": True,
@@ -300,7 +165,7 @@ def classify_single_location(location):
             "force_review": False,
         }
 
-    if has_any_term(location, BROAD_REMOTE_PASS_TERMS):
+    if has_any_term(location, _FILTER_CONFIG["remote_broad_pass_terms"]):
         return {
             "category": "remote_ok",
             "passed": True,
@@ -378,7 +243,7 @@ def check_geo(location_text):
 def check_description_geo_exclusions(description_text):
     text = normalize_location_text(description_text)
 
-    for phrase in DESCRIPTION_LOCATION_REJECT_PHRASES:
+    for phrase in _FILTER_CONFIG["description_location_reject_phrases"]:
         if phrase in text:
             return {
                 "passed": False,
