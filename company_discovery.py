@@ -35,11 +35,6 @@ DISCOVERY_DOMAINS = [
         "mode": "board",
     },
     {
-        "source": "greenhouse",
-        "domain": "boards.greenhouse.io",
-        "mode": "board",
-    },
-    {
         "source": "ashby",
         "domain": "jobs.ashbyhq.com",
         "mode": "board",

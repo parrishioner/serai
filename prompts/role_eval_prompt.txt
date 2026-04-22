@@ -1,0 +1,282 @@
+You are evaluating a specific job opportunity for a candidate.
+
+This prompt evaluates ONLY the job-level opportunity.
+
+Company scoring is precomputed and provided as input. You must NOT recalculate or change it.
+
+--------------------------------
+CRITICAL RULES
+--------------------------------
+
+1. Company score is fixed
+- A precomputed company_interest_score is provided.
+- You MUST pass it through unchanged in the output.
+- Do NOT reinterpret or modify it.
+
+2. Separate company vs role thinking
+- Role-level scores (role_interest, scope_interest, strength_overlap, level_fit) must be evaluated independently of company prestige.
+- Company quality should influence ONLY the final overall_interest_score.
+
+3. Avoid score inflation and collapse
+- Use the full 1–10 scale.
+- Many roles should fall in the middle.
+- High scores must be earned.
+- Do NOT cluster scores in 7–8 without strong justification.
+
+4. Relative evaluation
+- Evaluate this role relative to many other PM opportunities.
+- Assume the candidate has multiple viable options.
+
+5. Do NOT default to "Review"
+- "Review" means the role has not yet earned action.
+
+--------------------------------
+CANDIDATE PROFILE 
+--------------------------------
+
+CANDIDATE PROFILE
+{candidate_profile}
+
+--------------------------------
+RESUME CONTEXT
+--------------------------------
+{resume_text}
+
+--------------------------------
+MOST RELEVANT ANCHOR STORIES
+--------------------------------
+
+{anchor_stories}
+
+--------------------------------
+EVALUATION GUIDANCE
+--------------------------------
+Interpretation rules:
+- Do not assume title relevance from title text alone; use the candidate profile's target role families and hard constraints
+- Treat adjacent titles as potential fits only when the day-to-day scope and required capabilities match the candidate profile
+- Penalize roles whose core work is operational/support delivery if the candidate profile indicates those are out of scope
+- Do not over-reward prestige, company size, or brand recognition
+
+Decision framing:
+- Ask: "Would this role genuinely energize the candidate based on their strengths and trajectory?"
+- Be willing to give mid or low scores
+- Favor truthful, direct alignment over clever narrative framing
+
+--------------------------------
+BACKGROUND COMPANY CONTEXT (REFERENCE ONLY)
+--------------------------------
+
+BACKGROUND COMPANY CONTEXT
+{background_company_context}
+
+--------------------------------
+PRECOMPUTED COMPANY SCORE
+--------------------------------
+
+PRECOMPUTED COMPANY SCORE
+{company_interest_score}
+
+--------------------------------
+JOB INPUTS
+--------------------------------
+
+Company:
+{company}
+
+Job Title:
+{job_title}
+
+Location:
+{location}
+
+Compensation:
+{compensation}
+
+Job Description:
+{job_description}
+
+
+--------------------------------
+SCORING DIMENSIONS
+--------------------------------
+
+1. role_interest (1–10)
+
+How attractive this specific job is on its own merits, independent of company prestige.
+
+This should reflect:
+- ownership and decision-making leverage
+- strategic importance of the area
+- closeness to meaningful product problems
+- likely day-to-day work
+- whether the role feels energizing vs merely respectable
+
+Ask:
+“If this exact role existed at an average company, would it still stand out?”
+
+Scoring:
+- 9–10: exceptional
+- 7–8: strong
+- 5–6: acceptable
+- 3–4: weak
+- 1–2: low-interest
+
+--------------------------------
+
+2. strength_overlap (1–10)  **(MOST IMPORTANT SIGNAL FOR APPLY)**
+
+Definition:
+- Strength overlap measures how strongly the role’s core success depends on the candidate’s proven strengths.
+- It is NOT about general plausibility, intelligence, or ability to learn.
+- It is NOT about title similarity or company quality.
+
+Candidate’s proven strengths:
+- Derive these from the candidate profile, resume context, and anchor stories above
+- Prioritize explicit, repeated evidence over inferred potential
+- If a strength is not supported by those sections, treat it as unproven
+
+Method (STRICT):
+1. Identify the 3–5 MOST IMPORTANT capabilities required to succeed in this role
+2. Focus on the TOP 2 most critical drivers
+3. Compare those directly to the candidate’s proven strengths
+4. Evaluate based on the role’s CENTER OF GRAVITY (not peripheral overlaps)
+5. Penalize if the fit requires narrative stretching
+
+Critical rules:
+- Do NOT inflate score because the company is strong
+- Do NOT inflate score because the role is senior
+- Do NOT assume missing experience
+- Do NOT reward adjacency or vague similarity
+- Prefer direct, obvious, proven overlap
+
+Narrative stretch penalty:
+- If the reasoning sounds like “she could position her experience to fit,” this is NOT strong overlap
+- Prefer clear, immediate credibility over inferred potential
+
+Scoring:
+- 9–10: role is directly built around multiple proven strengths; strong immediate leverage
+- 7–8: meaningful overlap with core parts, but not full alignment
+- 5–6: partial overlap; significant parts rely on less-proven areas
+- 3–4: weak overlap; core success depends on missing strengths
+- 1–2: very weak; requires major narrative stretch
+
+--------------------------------
+
+3. level_fit (1–10)
+
+How well the role matches the candidate’s actual seniority and scope.
+
+Consider:
+- required experience
+- leadership scope
+- people management expectations
+- org complexity
+- domain/technical depth
+
+Strict rule:
+- Do NOT let level fit influence strength_overlap
+
+Penalize:
+- roles requiring management or domain prerequisites that the candidate profile does not explicitly support
+
+Scoring:
+- 9–10: excellent match
+- 7–8: good match
+- 5–6: stretch
+- 3–4: mismatch
+- 1–2: clear mismatch
+
+--------------------------------
+
+4. job_confidence (1–10)
+
+Confidence based on clarity of job description.
+
+--------------------------------
+
+5. overall_interest_score (1–10)
+
+Combine:
+- role_interest
+- strength_overlap
+- level_fit
+- company_interest_score (modifier only)
+
+Rules:
+- Role quality > strength overlap > company
+- Strong company cannot rescue weak role
+- Strong role can overcome mid company
+
+Ask:
+"Is this strong because of the role, or just the company?"
+
+Scoring:
+- 9–10: exceptional
+- 7–8: strong
+- 5–6: reasonable
+- 3–4: weak
+- 1–2: poor
+
+--------------------------------
+QUALITATIVE FIELDS
+--------------------------------
+
+differentiation_reason
+
+What specifically makes this role stand out?
+
+--------------------------------
+
+main_reservation
+
+What most limits enthusiasm or competitiveness?
+
+--------------------------------
+PRELIMINARY ROUTE RECOMMENDATION
+--------------------------------
+
+Recommend the best next action for this role in isolation.
+
+The system is optimized for speed:
+- Apply = strong enough to act on now
+- Network = worth extra effort only if the upside is real
+- Skip = default when the signal is not strong enough
+- Review = only if critical information is missing
+
+Important:
+- Be conservative with both Apply and Network
+- Prefer Skip over Network when the role is merely plausible
+- Network should be reserved for promising stretch cases or roles where extra effort could materially improve odds
+
+Apply:
+- Use only when the role appears clearly strong and likely worth immediate action
+- Usually requires strong strength overlap, strong role interest, and solid level fit
+
+Network:
+- Use only when the role has real upside but is not strong enough for immediate Apply
+- Best for good stretch roles, title mismatches, or high-value opportunities where a warm intro could make a difference
+
+Skip:
+- Use when the role is not strong enough to justify attention right now
+- This should be common
+
+Review:
+- Use only if critical information is missing
+
+--------------------------------
+OUTPUT FORMAT
+--------------------------------
+
+Return ONLY valid JSON:
+
+{{
+  "company_interest_score": number,
+  "role_interest": number,
+  "overall_interest_score": number,
+  "strength_overlap": number,
+  "level_fit": number,
+  "job_confidence": number,
+  "preliminary_route": "Apply" | "Network" | "Review" | "Skip",
+  "differentiation_reason": "string",
+  "main_reservation": "string"
+}}

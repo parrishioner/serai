@@ -1,0 +1,64 @@
+You are evaluating how attractive a company is for a specific candidate who is selective about their next move — someone looking for the rare company that could plausibly become a multi-year breakout.
+
+This is a company-level evaluation only.
+Do NOT evaluate any specific role.
+Do NOT evaluate hiring probability.
+
+Rules:
+- Evaluate the company itself, not a job opening
+- Keep this judgment stable across roles at the same company
+- Calibrate all scores against the named anchor companies in the candidate profile. The anchors define what each score means — a 9 is what the 9-10 anchor companies look like, a 4 is what the 3-4 anchor companies look like. Your score is only valid if it is consistent with the anchor placements.
+- Prestige, size, or name recognition alone do NOT warrant a high score. But if the evidence for a company genuinely matches or exceeds the evidence for a named 9-10 anchor, score it 9-10. Do not artificially compress scores downward.
+- If information is limited or mixed, use a moderate score (5-6) and set confidence to "low"
+- If your information about this company could be 12+ months stale, set confidence to "medium" or "low"
+- Do NOT compute company_interest_score. Set it to null. The system computes it from your dimension scores and the candidate's weights. Your job is to score each dimension accurately — nothing else.
+- Do NOT compute company_interest. Set it to null. The system derives it from the computed score.
+
+Universal negative signals (always lower scores regardless of candidate):
+- Distressed companies: major layoffs combined with declining revenue and down rounds
+- Services or agencies masquerading as software companies
+- Pure prompt-wrapper products with no proprietary model, data, or workflow layer
+
+Dimension scoring rules:
+- The candidate profile defines dimensions with weights and anchor companies per band
+- ANCHOR CALIBRATION (mandatory): If the company you are evaluating appears as a named anchor in ANY dimension's band in the candidate profile, your score for that company on that dimension MUST fall within the stated range. Named anchors ARE the scale — they define what each score means. Scoring a named anchor outside its stated band is a calibration error. Example: if the profile lists "Linear" as a 9-10 anchor for product_culture, then Linear's product_culture score must be 9 or 10.
+- Score EACH dimension independently on its own evidence
+- A company can have an elite moat and a terrible product culture simultaneously. A company can have explosive growth and no AI strategy. Score each dimension as if it were the ONLY dimension being evaluated. Do not let your overall assessment of the company's fit influence any individual dimension score.
+- A signal like layoffs affects growth_trajectory and leadership_quality differently — do not apply the same penalty uniformly across all dimensions
+- Do not infer one dimension from another: company success does not imply strong product culture; strong leadership does not imply strong moat; high growth does not imply durable moat
+- Do not infer product culture from company success. Look for evidence: named CPO, PM hiring activity, PM-authored public content, product-led launch cadence. Absence of evidence is a LOW score, not a medium score
+
+Disqualifier rules:
+- If the company matches a candidate-specific disqualifier from the profile, note it in disqualifier_flags but DO NOT let it affect dimensional scores. Score every dimension purely on its own evidence as if the disqualifier did not exist. Disqualifier routing is handled in code after scoring, not by you. Your job is to score the company accurately regardless of candidate fit.
+- You MUST populate the disqualifier_flags array. For each candidate-specific disqualifier listed in the profile, check whether this company matches it. If yes, add the disqualifier text to the array (e.g., "consumer social / gaming"). If no disqualifiers match, return an empty array. This field is validated — missing or null is a schema error.
+
+Candidate profile (role, archetype, dimensions, weights, anchors, disqualifiers):
+{candidate_profile}
+
+Company to evaluate:
+{company_name}
+
+Recent signals (from web search, last 12 months):
+{recent_signals}
+
+Signal routing rules:
+- Recent signals DIRECTLY inform: growth_trajectory, leadership_quality
+- Recent signals PARTIALLY inform (only with specific evidence): ai_leverage, market_category
+- Recent signals DO NOT inform: moat_durability, product_culture. These require structural evidence (distribution channels, network effects, named CPO, PM hiring patterns) — not press coverage or funding announcements
+- If signals contradict your training data on growth or leadership, trust the signals — they are more recent
+- Positive press (funding, revenue milestones, partnerships) is evidence for growth_trajectory ONLY. It is NOT evidence of moat durability, product culture, or leadership quality
+- If no recent signals are available, rely on training data but set confidence to "medium" or "low" for growth_trajectory and leadership_quality
+
+Generic scoring bands (candidate's anchor companies per band appear in the profile above):
+
+9-10 = EXCEPTIONAL. Strongly matches the candidate's archetype across the highest-weighted dimensions. Clear multi-year breakout trajectory visible in the evidence.
+
+7-8 = STRONG. Matches the archetype well on most weighted dimensions but has at least one visible risk, gap, or unproven dimension.
+
+5-6 = SOLID BUT NOT STANDOUT. Real business, but growth is flattening, category is saturated, motion is misaligned with the archetype, or one or more heavily-weighted dimensions are weak.
+
+3-4 = WEAK ALIGNMENT. Visible challenges, wrong motion for the archetype, or clear mismatch on multiple weighted dimensions.
+
+1-2 = POOR FIT. Distressed, failing products, or fundamental archetype mismatch across multiple dimensions.
+
+Return output matching the required schema exactly. In why_company, reference the specific dimensions where the company scored highest. In why_not_company, reference the specific dimensions where it scored lowest or where confidence was weak.
