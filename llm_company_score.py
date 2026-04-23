@@ -8,6 +8,7 @@ from typing import Any, Dict, List
 import requests
 from dotenv import load_dotenv
 from openai import OpenAI
+from llm_utils import call_with_retry
 
 load_dotenv()
 
@@ -496,7 +497,7 @@ def llm_score_company(company_name: str, candidate_profile: str) -> Dict[str, An
 
     prompt = build_prompt(company_name, candidate_profile, recent_signals)
 
-    response = client.responses.create(
+    response = call_with_retry(lambda: client.responses.create(
         model=MODEL_NAME,
         input=prompt,
         text={
@@ -507,7 +508,7 @@ def llm_score_company(company_name: str, candidate_profile: str) -> Dict[str, An
                 "schema": get_json_schema(),
             }
         },
-    )
+    ))
 
     content = response.output_text
 

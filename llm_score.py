@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import yaml
 from dotenv import load_dotenv
 from openai import OpenAI
+from llm_utils import call_with_retry
 
 
 DEBUG = False
@@ -555,7 +556,7 @@ def llm_score_job(
     )
     verbose_print(f"[role eval] prompt length={len(prompt)}")
 
-    response = client.responses.create(
+    response = call_with_retry(lambda: client.responses.create(
         model=MODEL_NAME,
         input=prompt,
         text={
@@ -566,7 +567,7 @@ def llm_score_job(
                 "schema": get_json_schema(),
             }
         },
-    )
+    ))
 
     content = response.output_text
 
