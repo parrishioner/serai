@@ -337,6 +337,7 @@ def process_ats_company_discovery(
     errors: list,
     broad_sweep_titles: list,
     adjacent_title_keywords: list,
+    limit: int = 0,
 ) -> None:
     discovered = discover_companies(
         DISCOVERY_PATTERNS,
@@ -344,12 +345,16 @@ def process_ats_company_discovery(
         adjacent_title_keywords,
     )
     metrics["discovery_candidates"] = len(discovered)
-    metrics["companies_checked"] = len(discovered)
 
     if not discovered:
         print("[discovery] no candidate companies found")
         return
 
+    if limit > 0:
+        print(f"[discovery] --limit {limit}: scoring {limit} of {len(discovered)} candidates")
+        discovered = discovered[:limit]
+
+    metrics["companies_checked"] = len(discovered)
     rows = []
     discovered_store = load_discovered_companies()
 
@@ -562,7 +567,7 @@ def process_yc_job_discovery(candidate_profile: str, metrics: dict, errors: list
         print(f"[yc_jobs] wrote {len(yc_rows)} rows to {YC_OUTPUT_CSV}")
 
 
-def main():
+def main(limit: int = 0):
     run_started_at = datetime.now(timezone.utc).isoformat()
     metrics = {
         "script": "company_discovery",
@@ -594,6 +599,7 @@ def main():
             errors,
             broad_titles,
             adjacent_kw,
+            limit=limit,
         )
         process_yc_job_discovery(candidate_profile, metrics, errors)
 
@@ -612,4 +618,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--limit", type=int, default=0, help="Cap number of companies scored (0 = no limit)")
+    args = parser.parse_args()
+    main(limit=args.limit)
