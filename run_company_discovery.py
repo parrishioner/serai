@@ -343,18 +343,14 @@ def process_ats_company_discovery(
         DISCOVERY_PATTERNS,
         broad_sweep_titles,
         adjacent_title_keywords,
+        limit=limit,
     )
     metrics["discovery_candidates"] = len(discovered)
+    metrics["companies_checked"] = len(discovered)
 
     if not discovered:
         print("[discovery] no candidate companies found")
         return
-
-    if limit > 0:
-        print(f"[discovery] --limit {limit}: scoring {limit} of {len(discovered)} candidates")
-        discovered = discovered[:limit]
-
-    metrics["companies_checked"] = len(discovered)
     rows = []
     discovered_store = load_discovered_companies()
 

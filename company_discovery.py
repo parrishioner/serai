@@ -587,11 +587,15 @@ def discover_companies(
     patterns: list,
     broad_sweep_titles: list,
     adjacent_title_keywords: list,
+    limit: int = 0,
 ) -> list:
     candidates = collect_board_candidates(patterns, broad_sweep_titles)
     discovered = []
 
     for candidate in candidates:
+        if limit > 0 and len(discovered) >= limit:
+            break
+
         evidence = gather_company_evidence(candidate, adjacent_title_keywords)
         if not evidence:
             continue
